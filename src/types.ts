@@ -15,6 +15,8 @@ export interface Order {
   buyerId: string;
   buyerName: string;
   buyerEmail: string;
+  buyerPhone: string;
+  buyerAddress: string;
   items: {
     productId: string;
     name: string;
@@ -22,12 +24,8 @@ export interface Order {
     quantity: number;
   }[];
   totalAmount: number;
-  paymentDetails?: {
-    accountNo: string;
-    amount: number;
-    otp: string;
-  };
-  status: 'pending' | 'completed';
+  paymentMethod: 'COD';
+  status: 'pending' | 'shipped' | 'delivered' | 'cancelled';
   createdAt: Timestamp;
 }
 

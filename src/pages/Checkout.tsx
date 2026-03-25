@@ -14,22 +14,13 @@ export default function Checkout() {
   const [step, setStep] = useState<'cart' | 'payment'>('cart');
   const [loading, setLoading] = useState(false);
 
-  // JazzCash Form State
-  const [paymentData, setPaymentData] = useState({
-    accountNo: '',
-    otp: ''
+  const [shippingData, setShippingData] = useState({
+    name: user?.displayName || '',
+    email: user?.email || '',
+    phone: '',
+    address: ''
   });
-  const [otpSent, setOtpSent] = useState(false);
-
-  const handleSendOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (paymentData.accountNo.length < 11) {
-      toast.error('Please enter a valid JazzCash account number');
-      return;
-    }
-    setOtpSent(true);
-    toast.success('OTP sent to your JazzCash mobile number!');
-  };
+  const [processing, setProcessing] = useState(false);
 
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,17 +30,23 @@ export default function Checkout() {
       return;
     }
 
-    if (paymentData.otp.length < 4) {
-      toast.error('Please enter a valid 4-digit OTP');
+    if (!shippingData.phone || !shippingData.address) {
+      toast.error('Please fill in all shipping details');
       return;
     }
 
-    setLoading(true);
+    setProcessing(true);
+    
+    // Simulate processing for 2 seconds
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     try {
       const orderData = {
         buyerId: user.uid,
-        buyerName: user.displayName || 'Anonymous',
-        buyerEmail: user.email || '',
+        buyerName: shippingData.name,
+        buyerEmail: shippingData.email,
+        buyerPhone: shippingData.phone,
+        buyerAddress: shippingData.address,
         items: cart.map(item => ({
           productId: item.id,
           name: item.name,
@@ -57,25 +54,36 @@ export default function Checkout() {
           quantity: item.quantity
         })),
         totalAmount: total,
-        paymentDetails: {
-          accountNo: paymentData.accountNo,
-          amount: total,
-          otp: paymentData.otp
-        },
-        status: 'completed',
+        paymentMethod: 'COD',
+        status: 'pending',
         createdAt: Timestamp.now()
       };
 
-      await addDoc(collection(db, 'orders'), orderData);
+      const docRef = await addDoc(collection(db, 'orders'), orderData);
       clearCart();
-      navigate('/order-success');
+      navigate('/order-success', { state: { orderId: docRef.id, buyerName: shippingData.name, total, items: orderData.items } });
     } catch (error) {
       console.error(error);
       toast.error('Failed to place order. Please try again.');
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
+
+  if (processing) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-8">
+        <div className="relative">
+          <div className="w-24 h-24 border-4 border-amber-100 border-t-amber-600 rounded-full animate-spin" />
+          <ShoppingBag className="absolute inset-0 m-auto w-10 h-10 text-amber-600" />
+        </div>
+        <div className="text-center space-y-2">
+          <h2 className="text-2xl font-bold text-gray-900">Processing Your Order</h2>
+          <p className="text-gray-500">Please wait while we secure your premium items...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (cart.length === 0) {
     return (
@@ -137,84 +145,81 @@ export default function Checkout() {
           <div className="space-y-8">
             <div className="flex items-center gap-4">
               <button onClick={() => setStep('cart')} className="text-gray-500 hover:text-gray-900 font-medium">← Back to Cart</button>
-              <h1 className="text-3xl font-bold tracking-tight">Payment</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Shipping Details</h1>
             </div>
 
             <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm space-y-8">
-              <div className="flex items-center gap-4 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                <div className="bg-amber-600 p-2 rounded-lg">
-                  <Smartphone className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-bold text-amber-900">JazzCash Mobile Account</h3>
-                  <p className="text-sm text-amber-700">Pay securely using your JazzCash wallet.</p>
-                </div>
-              </div>
-
-              {!otpSent ? (
-                <form onSubmit={handleSendOtp} className="space-y-6">
+              <form onSubmit={handlePlaceOrder} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">JazzCash Account Number</label>
+                    <label className="text-sm font-bold text-gray-700">Full Name</label>
+                    <input
+                      type="text"
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                      value={shippingData.name}
+                      onChange={(e) => setShippingData({ ...shippingData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-gray-700">Phone Number</label>
                     <input
                       type="tel"
                       placeholder="03XX XXXXXXX"
                       className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                      value={paymentData.accountNo}
-                      onChange={(e) => setPaymentData({ ...paymentData, accountNo: e.target.value })}
+                      value={shippingData.phone}
+                      onChange={(e) => setShippingData({ ...shippingData, phone: e.target.value })}
                       required
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">Amount to Pay</label>
-                    <div className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl font-bold text-gray-900">
-                      {formatCurrency(total)}
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700">Email Address</label>
+                  <input
+                    type="email"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
+                    value={shippingData.email}
+                    onChange={(e) => setShippingData({ ...shippingData, email: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700">Shipping Address</label>
+                  <textarea
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 h-24"
+                    value={shippingData.address}
+                    onChange={(e) => setShippingData({ ...shippingData, address: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="pt-6 border-t border-gray-50">
+                  <h3 className="text-sm font-bold text-gray-700 mb-4">Payment Method</h3>
+                  <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-amber-600 p-2 rounded-lg">
+                        <Smartphone className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-amber-900">Cash on Delivery (COD)</h3>
+                        <p className="text-sm text-amber-700">Pay when you receive your order.</p>
+                      </div>
                     </div>
+                    <div className="w-6 h-6 rounded-full border-4 border-amber-600 bg-white" />
                   </div>
-                  <button
-                    type="submit"
-                    className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-amber-600 transition-all shadow-xl shadow-gray-200"
-                  >
-                    Send OTP
-                  </button>
-                </form>
-              ) : (
-                <form onSubmit={handlePlaceOrder} className="space-y-6">
-                  <div className="space-y-2">
-                    <label className="text-sm font-bold text-gray-700">Enter 4-Digit OTP</label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      placeholder="XXXX"
-                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 text-center text-2xl tracking-[1em] font-bold"
-                      value={paymentData.otp}
-                      onChange={(e) => setPaymentData({ ...paymentData, otp: e.target.value })}
-                      required
-                    />
-                    <p className="text-xs text-gray-500 text-center">We've sent a code to {paymentData.accountNo}</p>
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className={cn(
-                      "w-full bg-amber-600 text-white py-4 rounded-2xl font-bold text-lg hover:bg-amber-700 transition-all shadow-xl shadow-amber-600/20 flex items-center justify-center gap-2",
-                      loading && "opacity-50 cursor-not-allowed"
-                    )}
-                  >
-                    {loading ? (
-                      <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>Pay & Place Order <ShieldCheck className="w-5 h-5" /></>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setOtpSent(false)}
-                    className="w-full text-gray-500 text-sm font-medium hover:text-gray-900"
-                  >
-                    Use a different account
-                  </button>
-                </form>
-              )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={cn(
+                    "w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-lg hover:bg-amber-600 transition-all shadow-xl shadow-gray-200 flex items-center justify-center gap-2",
+                    loading && "opacity-50 cursor-not-allowed"
+                  )}
+                >
+                  Confirm Order <ArrowRight className="w-5 h-5" />
+                </button>
+              </form>
             </div>
           </div>
         )}

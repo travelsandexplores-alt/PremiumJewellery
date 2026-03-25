@@ -69,9 +69,14 @@ service cloud.firestore {
 
     function isValidOrder(data) {
       return data.buyerId is string &&
+             data.buyerName is string &&
+             data.buyerEmail is string &&
+             data.buyerPhone is string &&
+             data.buyerAddress is string &&
              data.items is list && data.items.size() > 0 &&
              data.totalAmount is number && data.totalAmount >= 0 &&
-             data.status in ['pending', 'completed'] &&
+             data.paymentMethod == 'COD' &&
+             data.status in ['pending', 'shipped', 'delivered', 'cancelled'] &&
              data.createdAt is timestamp;
     }
 

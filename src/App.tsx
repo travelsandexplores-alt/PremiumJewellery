@@ -73,9 +73,18 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await signInWithPopup(auth, googleProvider);
       toast.success('Signed in successfully!');
-    } catch (error) {
-      console.error(error);
-      toast.error('Failed to sign in');
+    } catch (error: any) {
+      console.error('Sign-in error:', error);
+      if (error.code === 'auth/unauthorized-domain') {
+        const domain = window.location.hostname;
+        toast.error(`Domain "${domain}" is not authorized in Firebase Console. Please add it to Authentication > Settings > Authorized domains.`, {
+          duration: 10000,
+        });
+      } else if (error.code === 'auth/popup-blocked') {
+        toast.error('Sign-in popup was blocked by your browser. Please allow popups for this site.');
+      } else {
+        toast.error(`Failed to sign in: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 

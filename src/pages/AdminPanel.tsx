@@ -4,7 +4,7 @@ import { db } from '../firebase';
 import { Product, Order, Settings } from '../types';
 import { useAuth } from '../App';
 import { formatCurrency, cn } from '../lib/utils';
-import { Plus, Trash2, LayoutDashboard, Package, ShoppingBag, Settings as SettingsIcon, TrendingUp, Lock, Eye, EyeOff, Save, CheckCircle2, AlertCircle, Upload, X } from 'lucide-react';
+import { Plus, Trash2, LayoutDashboard, Package, ShoppingBag, Settings as SettingsIcon, TrendingUp, Lock, Eye, EyeOff, Save, CheckCircle2, AlertCircle, Upload, X, Edit2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export default function AdminPanel() {
@@ -29,6 +29,7 @@ export default function AdminPanel() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -136,19 +137,49 @@ export default function AdminPanel() {
     }
 
     try {
-      await addDoc(collection(db, 'products'), {
-        ...newProduct,
-        imageUrl: finalImageUrl,
-        price: parseFloat(newProduct.price),
-        createdAt: Timestamp.now()
-      });
+      if (editingProduct) {
+        await updateDoc(doc(db, 'products', editingProduct.id), {
+          ...newProduct,
+          imageUrl: finalImageUrl,
+          price: parseFloat(newProduct.price)
+        });
+        toast.success('Product updated successfully!');
+      } else {
+        await addDoc(collection(db, 'products'), {
+          ...newProduct,
+          imageUrl: finalImageUrl,
+          price: parseFloat(newProduct.price),
+          createdAt: Timestamp.now()
+        });
+        toast.success('Product added successfully!');
+      }
       setNewProduct({ name: '', description: '', price: '', imageUrl: '', category: 'Rings' });
       setFilePreview(null);
-      toast.success('Product added successfully!');
+      setEditingProduct(null);
     } catch (error) {
       console.error(error);
-      toast.error('Failed to add product');
+      toast.error(editingProduct ? 'Failed to update product' : 'Failed to add product');
     }
+  };
+
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    setNewProduct({
+      name: product.name,
+      description: product.description,
+      price: product.price.toString(),
+      imageUrl: product.imageUrl,
+      category: product.category
+    });
+    setFilePreview(null);
+    setActiveTab('products');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    setNewProduct({ name: '', description: '', price: '', imageUrl: '', category: 'Rings' });
+    setFilePreview(null);
   };
 
   const handleDeleteProduct = async (id: string) => {
@@ -173,12 +204,28 @@ export default function AdminPanel() {
     }
   };
 
-  // Earnings Logic
-  const totalEarnings = orders.reduce((sum, order) => sum + order.totalAmount, 0);
-  const productSales = orders.flatMap(o => o.items).reduce((acc, item) => {
-    acc[item.name] = (acc[item.name] || 0) + item.quantity;
-    return acc;
-  }, {} as Record<string, number>);
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+    try {
+      await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+      toast.success(`Order status updated to ${newStatus}`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update order status');
+    }
+  };
+
+  // Earnings Logic - Only count delivered orders
+  const totalEarnings = orders
+    .filter(order => order.status === 'delivered')
+    .reduce((sum, order) => sum + order.totalAmount, 0);
+    
+  const productSales = orders
+    .filter(order => order.status === 'delivered')
+    .flatMap(o => o.items)
+    .reduce((acc, item) => {
+      acc[item.name] = (acc[item.name] || 0) + item.quantity;
+      return acc;
+    }, {} as Record<string, number>);
 
   const bestSellers = Object.entries(productSales)
     .sort(([, a], [, b]) => (b as number) - (a as number))
@@ -327,7 +374,8 @@ export default function AdminPanel() {
           <div className="space-y-8">
             <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
               <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                <Plus className="w-5 h-5" /> Add New Product
+                {editingProduct ? <Edit2 className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                {editingProduct ? 'Edit Product' : 'Add New Product'}
               </h2>
               <form onSubmit={handleAddProduct} className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -408,12 +456,23 @@ export default function AdminPanel() {
                     onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="md:col-span-2 bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-all active:scale-95"
-                >
-                  Save Product
-                </button>
+                <div className="md:col-span-2 flex gap-4">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-gray-900 text-white py-3 rounded-xl font-bold hover:bg-amber-600 transition-all active:scale-95"
+                  >
+                    {editingProduct ? 'Update Product' : 'Save Product'}
+                  </button>
+                  {editingProduct && (
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      className="px-8 bg-gray-100 text-gray-600 py-3 rounded-xl font-bold hover:bg-gray-200 transition-all active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
               </form>
             </div>
 
@@ -439,12 +498,20 @@ export default function AdminPanel() {
                       <td className="px-6 py-4 text-gray-600">{product.category}</td>
                       <td className="px-6 py-4 font-bold text-gray-900">{formatCurrency(product.price)}</td>
                       <td className="px-6 py-4 text-right">
-                        <button
-                          onClick={() => handleDeleteProduct(product.id)}
-                          className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-all"
-                        >
-                          <Trash2 className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEditClick(product)}
+                            className="text-blue-500 hover:text-blue-700 p-2 hover:bg-blue-50 rounded-lg transition-all"
+                          >
+                            <Edit2 className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(product.id)}
+                            className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-all"
+                          >
+                            <Trash2 className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -470,26 +537,35 @@ export default function AdminPanel() {
                       <p className="text-sm text-gray-500">{order.createdAt.toDate().toLocaleString()}</p>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className={cn(
-                        "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
-                        order.status === 'completed' ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
-                      )}>
-                        {order.status}
-                      </span>
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as Order['status'])}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border-none focus:ring-2 focus:ring-amber-500 cursor-pointer",
+                          order.status === 'delivered' ? "bg-green-100 text-green-700" : 
+                          order.status === 'shipped' ? "bg-blue-100 text-blue-700" :
+                          order.status === 'cancelled' ? "bg-red-100 text-red-700" :
+                          "bg-amber-100 text-amber-700"
+                        )}
+                      >
+                        <option value="pending">Pending</option>
+                        <option value="shipped">Shipped</option>
+                        <option value="delivered">Delivered</option>
+                        <option value="cancelled">Cancelled</option>
+                      </select>
                       <span className="text-xl font-bold text-gray-900">{formatCurrency(order.totalAmount)}</span>
                     </div>
                   </div>
                   <div className="border-t border-gray-50 pt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div className="space-y-2">
-                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Buyer Info</p>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Shipping Info</p>
                       <p className="font-medium">{order.buyerName}</p>
                       <p className="text-sm text-gray-500">{order.buyerEmail}</p>
-                      {order.paymentDetails && (
-                        <div className="mt-2 p-3 bg-gray-50 rounded-xl text-sm">
-                          <p className="font-bold text-amber-700">JazzCash Payment</p>
-                          <p>Account: {order.paymentDetails.accountNo}</p>
-                        </div>
-                      )}
+                      <p className="text-sm text-gray-500">{order.buyerPhone}</p>
+                      <div className="mt-2 p-3 bg-gray-50 rounded-xl text-sm">
+                        <p className="font-bold text-amber-700">Address:</p>
+                        <p className="text-gray-600">{order.buyerAddress}</p>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Items</p>
