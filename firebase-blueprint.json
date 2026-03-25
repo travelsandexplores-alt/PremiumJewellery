@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A jewellery product available for sale.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the product" },
+        "description": { "type": "string", "description": "Description of the product" },
+        "price": { "type": "number", "description": "Price of the product" },
+        "imageUrl": { "type": "string", "description": "URL of the product image" },
+        "category": { "type": "string", "description": "Category of the jewellery" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the product was added" }
+      },
+      "required": ["name", "price", "imageUrl"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "A purchase record.",
+      "type": "object",
+      "properties": {
+        "buyerId": { "type": "string", "description": "Firebase Auth UID of the buyer" },
+        "buyerName": { "type": "string", "description": "Name of the buyer" },
+        "buyerEmail": { "type": "string", "description": "Email of the buyer" },
+        "items": { "type": "array", "description": "List of products purchased" },
+        "totalAmount": { "type": "number", "description": "Total price of the order" },
+        "paymentDetails": { "type": "object", "description": "JazzCash payment info" },
+        "status": { "type": "string", "description": "Order status (pending, completed)" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "When the order was placed" }
+      },
+      "required": ["buyerId", "items", "totalAmount"]
+    },
+    "Settings": {
+      "title": "Settings",
+      "description": "Global application settings.",
+      "type": "object",
+      "properties": {
+        "adminPassword": { "type": "string", "description": "Password to access admin panel" },
+        "shopName": { "type": "string", "description": "Name of the shop" }
+      }
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile data.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["admin", "user"] }
+      }
+    }
+  },
+  "firestore": {
+    "/products/{productId}": { "schema": "Product", "description": "Jewellery products" },
+    "/orders/{orderId}": { "schema": "Order", "description": "Customer orders" },
+    "/settings/{settingId}": { "schema": "Settings", "description": "App configuration" },
+    "/users/{userId}": { "schema": "User", "description": "User profiles" }
+  }
+}
