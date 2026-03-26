@@ -4,8 +4,10 @@ import { db } from '../firebase';
 import { Product, Order, Settings } from '../types';
 import { useAuth } from '../App';
 import { formatCurrency, cn } from '../lib/utils';
-import { Plus, Trash2, LayoutDashboard, Package, ShoppingBag, Settings as SettingsIcon, TrendingUp, Lock, Eye, EyeOff, Save, CheckCircle2, AlertCircle, Upload, X, Edit2 } from 'lucide-react';
+import { Plus, Trash2, LayoutDashboard, Package, ShoppingBag, Settings as SettingsIcon, TrendingUp, Lock, Eye, EyeOff, Save, CheckCircle2, AlertCircle, Upload, X, Edit2, Printer } from 'lucide-react';
 import { toast } from 'sonner';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export default function AdminPanel() {
   const { isAdmin, loading: authLoading } = useAuth();
@@ -86,7 +88,7 @@ export default function AdminPanel() {
     };
     fetchSettings();
 
-    const qProducts = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    const qProducts = query(collection(db, 'products'));
     const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
     }, (error) => {
@@ -198,6 +200,45 @@ export default function AdminPanel() {
     }
   };
 
+  const handleAddSampleProducts = async () => {
+    const samples = [
+      {
+        name: 'Royal Diamond Ring',
+        description: 'A stunning 18k white gold ring with a brilliant-cut center diamond.',
+        price: 125000,
+        imageUrl: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?auto=format&fit=crop&q=80&w=800',
+        category: 'Rings'
+      },
+      {
+        name: 'Pearl Elegance Necklace',
+        description: 'Classic freshwater pearl necklace with a gold clasp.',
+        price: 45000,
+        imageUrl: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&q=80&w=800',
+        category: 'Necklaces'
+      },
+      {
+        name: 'Golden Hoop Earrings',
+        description: 'Timeless 24k gold plated hoops for everyday elegance.',
+        price: 15000,
+        imageUrl: 'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?auto=format&fit=crop&q=80&w=800',
+        category: 'Earrings'
+      }
+    ];
+
+    try {
+      for (const sample of samples) {
+        await addDoc(collection(db, 'products'), {
+          ...sample,
+          createdAt: Timestamp.now()
+        });
+      }
+      toast.success('Sample products added successfully!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to add sample products');
+    }
+  };
+
   const handleUpdatePassword = async (newPass: string) => {
     try {
       await updateDoc(doc(db, 'settings', 'admin'), { adminPassword: newPass });
@@ -217,6 +258,95 @@ export default function AdminPanel() {
       console.error(error);
       toast.error('Failed to update order status');
     }
+  };
+
+  const generateOrderPDF = (order: Order) => {
+    const doc = new jsPDF();
+    const shopName = adminSettings?.shopName || 'PREMIUM JEWELLERY';
+    const logoUrl = adminSettings?.logoUrl;
+
+    // Header
+    if (logoUrl) {
+      try {
+        doc.addImage(logoUrl, 'JPEG', 85, 10, 40, 40); // Center logo
+      } catch (e) {
+        console.error("Failed to add logo to PDF:", e);
+      }
+    }
+
+    const startY = logoUrl ? 55 : 20;
+    doc.setFontSize(22);
+    doc.setTextColor(180, 150, 80); // Gold-ish color
+    doc.text(shopName, 105, startY, { align: 'center' });
+    
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Premium Quality Jewellery & Accessories', 105, startY + 8, { align: 'center' });
+
+    // Divider
+    doc.setDrawColor(200);
+    doc.line(20, startY + 15, 190, startY + 15);
+
+    // Order Info
+    const infoY = startY + 25;
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`ORDER RECEIPT: #${order.id.slice(-6).toUpperCase()}`, 20, infoY);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text(`Date: ${order.createdAt.toDate().toLocaleString()}`, 20, infoY + 7);
+    doc.text(`Status: ${order.status.toUpperCase()}`, 20, infoY + 12);
+
+    // Customer Details
+    doc.setFont('helvetica', 'bold');
+    doc.text('SHIPPING DETAILS:', 20, infoY + 25);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Name: ${order.buyerName}`, 20, infoY + 32);
+    doc.text(`Email: ${order.buyerEmail}`, 20, infoY + 37);
+    doc.text(`Phone: ${order.buyerPhone}`, 20, infoY + 42);
+    doc.text(`Address: ${order.buyerAddress}`, 20, infoY + 47, { maxWidth: 170 });
+
+    // Items Table
+    const tableData = order.items.map(item => [
+      item.name,
+      item.quantity.toString(),
+      formatCurrency(item.price),
+      formatCurrency(item.price * item.quantity)
+    ]);
+
+    autoTable(doc, {
+      startY: infoY + 60,
+      head: [['Product', 'Qty', 'Price', 'Total']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [31, 41, 55], textColor: [255, 255, 255] },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { cellWidth: 100 },
+        1: { halign: 'center' },
+        2: { halign: 'right' },
+        3: { halign: 'right' }
+      }
+    });
+
+    // Total
+    const finalY = (doc as any).lastAutoTable.finalY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(`GRAND TOTAL: ${formatCurrency(order.totalAmount)}`, 190, finalY, { align: 'right' });
+
+    // Footer
+    const pageHeight = doc.internal.pageSize.height;
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(10);
+    doc.setTextColor(100);
+    doc.text('Thank you for shopping with PREMIUM JEWELLERY!', 105, pageHeight - 20, { align: 'center' });
+    doc.text('This is a computer generated receipt.', 105, pageHeight - 15, { align: 'center' });
+
+    doc.save(`Order_${order.id.slice(-6).toUpperCase()}.pdf`);
+    toast.success('PDF generated successfully!');
   };
 
   // Earnings Logic - Only count delivered orders
@@ -542,6 +672,13 @@ export default function AdminPanel() {
                       <p className="text-sm text-gray-500">{order.createdAt.toDate().toLocaleString()}</p>
                     </div>
                     <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => generateOrderPDF(order)}
+                        className="flex items-center gap-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-bold hover:bg-gray-200 transition-all"
+                        title="Print PDF Receipt"
+                      >
+                        <Printer className="w-3 h-3" /> Print PDF
+                      </button>
                       <select
                         value={order.status}
                         onChange={(e) => handleUpdateOrderStatus(order.id, e.target.value as Order['status'])}
@@ -626,15 +763,70 @@ export default function AdminPanel() {
               </h2>
               <div className="space-y-4">
                 <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700">Sample Data</label>
+                  <button
+                    onClick={handleAddSampleProducts}
+                    className="w-full bg-amber-50 text-amber-700 py-3 rounded-xl font-bold hover:bg-amber-100 transition-all border border-amber-200"
+                  >
+                    Add Sample Products
+                  </button>
+                  <p className="text-xs text-gray-500 mt-1">If your shop is empty, use this to quickly add some example products.</p>
+                </div>
+                <div className="space-y-2">
                   <label className="text-sm font-bold text-gray-700">Shop Name</label>
                   <input
                     type="text"
                     defaultValue={adminSettings?.shopName}
                     className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500"
-                    onChange={async (e) => {
+                    onBlur={async (e) => {
+                      if (e.target.value === adminSettings?.shopName) return;
                       await updateDoc(doc(db, 'settings', 'admin'), { shopName: e.target.value });
+                      setAdminSettings(prev => prev ? { ...prev, shopName: e.target.value } : null);
+                      toast.success('Shop name updated');
                     }}
                   />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-gray-700">Shop Logo</label>
+                  <div className="flex items-center gap-4">
+                    <label className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-200 rounded-xl hover:border-amber-500 hover:bg-amber-50 cursor-pointer transition-all">
+                      <Upload className="w-4 h-4" />
+                      <span className="text-sm font-medium">Upload Logo</span>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*" 
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          
+                          const reader = new FileReader();
+                          reader.onload = async (event) => {
+                            const dataUrl = event.target?.result as string;
+                            await updateDoc(doc(db, 'settings', 'admin'), { logoUrl: dataUrl });
+                            setAdminSettings(prev => prev ? { ...prev, logoUrl: dataUrl } : null);
+                            toast.success('Logo updated');
+                          };
+                          reader.readAsDataURL(file);
+                        }} 
+                      />
+                    </label>
+                    {adminSettings?.logoUrl && (
+                      <div className="relative w-16 h-16">
+                        <img src={adminSettings.logoUrl} alt="Logo" className="w-full h-full object-contain rounded-lg border bg-gray-50" />
+                        <button 
+                          onClick={async () => {
+                            await updateDoc(doc(db, 'settings', 'admin'), { logoUrl: '' });
+                            setAdminSettings(prev => prev ? { ...prev, logoUrl: '' } : null);
+                            toast.success('Logo removed');
+                          }}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white p-1 rounded-full shadow-sm"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

@@ -40,4 +40,5 @@ export interface UserProfile {
 export interface Settings {
   adminPassword?: string;
   shopName?: string;
+  logoUrl?: string;
 }

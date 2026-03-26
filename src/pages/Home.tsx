@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
-import { db } from '../firebase';
+import { db, testConnection } from '../firebase';
 import { Product } from '../types';
 import { useCart } from '../App';
 import { formatCurrency } from '../lib/utils';
 import { ShoppingCart, Search, Filter } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Home() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -13,16 +14,32 @@ export default function Home() {
   const { addToCart } = useCart();
 
   useEffect(() => {
-    const q = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
+    testConnection();
+    const q = query(collection(db, 'products'));
+    
+    // Safety timeout for loading state
+    const timeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+        toast.error("Loading products is taking longer than expected...");
+      }
+    }, 5000);
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      clearTimeout(timeout);
       const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(prods);
       setLoading(false);
     }, (error) => {
+      clearTimeout(timeout);
       console.error("Error fetching products:", error);
+      toast.error("Failed to load products. Please check your internet connection or Firebase setup.");
       setLoading(false);
     });
-    return unsubscribe;
+    return () => {
+      unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   const filteredProducts = products.filter(p => 
