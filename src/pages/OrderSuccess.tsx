@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { CheckCircle2, ShoppingBag, ArrowRight, Gem, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { formatCurrency } from '../lib/utils';
+import { toast } from 'sonner';
 
 export default function OrderSuccess() {
   const navigate = useNavigate();
@@ -82,7 +83,23 @@ export default function OrderSuccess() {
 
       <div className="space-y-4 max-w-md">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900">Thank you, {buyerName}!</h1>
-        <p className="text-gray-500 text-lg">Your order <span className="font-bold text-gray-900">#{orderId.slice(-6).toUpperCase()}</span> is confirmed. Download your receipt below.</p>
+        <p className="text-gray-500 text-lg">Your order is confirmed. Please save your Order ID for tracking.</p>
+        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 flex items-center justify-between gap-4">
+          <div className="text-left">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Your Order ID</p>
+            <p className="font-mono font-bold text-gray-900 break-all">{orderId}</p>
+          </div>
+          <button 
+            onClick={() => {
+              navigator.clipboard.writeText(orderId);
+              toast.success('Order ID copied to clipboard!');
+            }}
+            className="p-2 hover:bg-gray-200 rounded-lg transition-colors text-gray-500"
+            title="Copy Order ID"
+          >
+            <Download className="w-5 h-5 rotate-180" />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-4 w-full max-w-md">
@@ -101,7 +118,7 @@ export default function OrderSuccess() {
             <ShoppingBag className="w-5 h-5" /> Continue Shopping
           </button>
           <button
-            onClick={() => navigate('/admin')}
+            onClick={() => navigate('/track')}
             className="flex-1 bg-white text-gray-900 border border-gray-200 py-4 rounded-2xl font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2 shadow-sm"
           >
             Track Order <ArrowRight className="w-5 h-5" />

@@ -18,6 +18,7 @@ import Home from './pages/Home';
 import AdminPanel from './pages/AdminPanel';
 import Checkout from './pages/Checkout';
 import OrderSuccess from './pages/OrderSuccess';
+import TrackOrder from './pages/TrackOrder';
 
 // Context
 interface AuthContextType {
@@ -44,26 +45,31 @@ const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          setProfile(userDoc.data() as UserProfile);
+      try {
+        setUser(user);
+        if (user) {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            setProfile(userDoc.data() as UserProfile);
+          } else {
+            const newProfile: UserProfile = {
+              uid: user.uid,
+              name: user.displayName || 'Anonymous',
+              email: user.email || '',
+              photoURL: user.photoURL || undefined,
+              role: user.email === 'travelsandexplores@gmail.com' ? 'admin' : 'user',
+            };
+            await setDoc(doc(db, 'users', user.uid), newProfile);
+            setProfile(newProfile);
+          }
         } else {
-          const newProfile: UserProfile = {
-            uid: user.uid,
-            name: user.displayName || 'Anonymous',
-            email: user.email || '',
-            photoURL: user.photoURL || undefined,
-            role: user.email === 'travelsandexplores@gmail.com' ? 'admin' : 'user',
-          };
-          await setDoc(doc(db, 'users', user.uid), newProfile);
-          setProfile(newProfile);
+          setProfile(null);
         }
-      } else {
-        setProfile(null);
+      } catch (error) {
+        console.error("Auth state error:", error);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return unsubscribe;
@@ -177,6 +183,7 @@ const Navbar = () => {
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/" className="text-gray-600 hover:text-amber-600 font-medium">Shop</Link>
+            <Link to="/track" className="text-gray-600 hover:text-amber-600 font-medium">Track Order</Link>
             {isAdmin && (
               <Link to="/admin" className="text-gray-600 hover:text-amber-600 font-medium flex items-center gap-1">
                 <SettingsIcon className="w-4 h-4" /> Admin
@@ -228,6 +235,7 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="md:hidden bg-white border-b border-gray-100 px-4 py-4 space-y-4">
           <Link to="/" className="block text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Shop</Link>
+          <Link to="/track" className="block text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Track Order</Link>
           {isAdmin && (
             <Link to="/admin" className="block text-gray-600 font-medium" onClick={() => setIsMenuOpen(false)}>Admin Panel</Link>
           )}
@@ -255,6 +263,7 @@ export default function App() {
                 <Route path="/admin" element={<AdminPanel />} />
                 <Route path="/checkout" element={<Checkout />} />
                 <Route path="/order-success" element={<OrderSuccess />} />
+                <Route path="/track" element={<TrackOrder />} />
                 <Route path="*" element={<Navigate to="/" />} />
               </Routes>
             </main>

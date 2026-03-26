@@ -18,6 +18,9 @@ export default function Home() {
       const prods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
       setProducts(prods);
       setLoading(false);
+    }, (error) => {
+      console.error("Error fetching products:", error);
+      setLoading(false);
     });
     return unsubscribe;
   }, []);
@@ -72,9 +75,17 @@ export default function Home() {
       </div>
 
       {/* Product Grid */}
-      {filteredProducts.length === 0 ? (
+      {products.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+          <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-900">No products yet</h3>
+          <p className="text-gray-500 mt-2">Our premium collection is coming soon. Please check back later!</p>
+        </div>
+      ) : filteredProducts.length === 0 ? (
         <div className="text-center py-20">
-          <p className="text-gray-500 text-lg">No products found matching your search.</p>
+          <Search className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-gray-900">No results found</h3>
+          <p className="text-gray-500 mt-2">We couldn't find any products matching "{searchTerm}".</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">

@@ -89,11 +89,16 @@ export default function AdminPanel() {
     const qProducts = query(collection(db, 'products'), orderBy('createdAt', 'desc'));
     const unsubscribeProducts = onSnapshot(qProducts, (snapshot) => {
       setProducts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product)));
+    }, (error) => {
+      console.error("Error fetching products in admin:", error);
     });
 
     const qOrders = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     const unsubscribeOrders = onSnapshot(qOrders, (snapshot) => {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching orders in admin:", error);
       setLoading(false);
     });
 
