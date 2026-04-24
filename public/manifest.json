@@ -1,0 +1,22 @@
+{
+  "short_name": "PremiumJewellery",
+  "name": "PREMIUM JEWELLERY",
+  "icons": [
+    {
+      "src": "logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "logo.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#D4AF37",
+  "background_color": "#ffffff"
+}
