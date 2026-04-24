@@ -1,8 +1,9 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { CheckCircle2, ShoppingBag, ArrowRight, Gem, Download } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, ArrowRight, Download } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import { formatCurrency } from '../lib/utils';
 import { toast } from 'sonner';
+import { Logo } from '../components/Logo';
 
 export default function OrderSuccess() {
   const navigate = useNavigate();
@@ -126,8 +127,8 @@ export default function OrderSuccess() {
         </div>
       </div>
 
-      <div className="pt-12 flex items-center gap-2 text-gray-400">
-        <Gem className="w-5 h-5" />
+      <div className="pt-12 flex items-center gap-2 text-gray-400 opacity-50">
+        <Logo className="w-6 h-6" />
         <span className="text-sm font-medium tracking-widest uppercase">Premium Experience</span>
       </div>
     </div>

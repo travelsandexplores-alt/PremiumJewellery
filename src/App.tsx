@@ -10,8 +10,9 @@ import { doc, getDoc, setDoc, onSnapshot, collection, query, orderBy, Timestamp 
 import { auth, db, googleProvider, signInWithPopup, signOut } from './firebase';
 import { UserProfile, Product, Order, Settings } from './types';
 import { Toaster, toast } from 'sonner';
-import { ShoppingCart, User as UserIcon, Settings as SettingsIcon, LogOut, Menu, X, Gem } from 'lucide-react';
+import { ShoppingCart, User as UserIcon, Settings as SettingsIcon, LogOut, Menu, X } from 'lucide-react';
 import { cn, formatCurrency } from './lib/utils';
+import { Logo } from './components/Logo';
 
 // Components
 import Home from './pages/Home';
@@ -176,7 +177,7 @@ const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <Link to="/" className="flex items-center space-x-2">
-            <Gem className="w-8 h-8 text-amber-600" />
+            <Logo className="w-10 h-10" />
             <span className="text-xl font-bold tracking-tight text-gray-900">PREMIUM JEWELLERY</span>
           </Link>
 

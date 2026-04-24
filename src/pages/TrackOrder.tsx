@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Search, Package, Truck, CheckCircle2, XCircle, Clock, Gem, ArrowRight, AlertCircle } from 'lucide-react';
+import { Search, Package, Truck, CheckCircle2, XCircle, Clock, ArrowRight, AlertCircle } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db, auth } from '../firebase';
 import { Order } from '../types';
 import { formatCurrency, cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { Logo } from '../components/Logo';
 
 export default function TrackOrder() {
   const [orderId, setOrderId] = useState('');
@@ -236,9 +237,9 @@ export default function TrackOrder() {
         )}
       </AnimatePresence>
 
-      <div className="pt-12 flex flex-col items-center gap-4 text-gray-400">
+      <div className="pt-12 flex flex-col items-center gap-4 text-gray-400 opacity-50">
         <div className="flex items-center gap-2">
-          <Gem className="w-5 h-5" />
+          <Logo className="w-6 h-6" />
           <span className="text-sm font-medium tracking-widest uppercase">Premium Experience</span>
         </div>
         <p className="text-xs text-center max-w-xs">
